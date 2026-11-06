@@ -115,6 +115,13 @@ async def add_color(user: discord.Member, guild: discord.Guild, response: discor
                 reason=f"Role created via bot by {user}" 
             )
             await user.add_roles(new_role, reason=f"Role assigned via bot by {user}")
+            
+            new_role = discord.utils.get(guild.roles, name=role_name)
+            if new_role is None:
+                logger.error("Failed to retrieve the newly created role for user %s.", user.id)
+                await response.send_message("Error when assigning color.", ephemeral=True)
+                return
+            
             await new_role.edit(position=guild.me.top_role.position - 1, reason=f"Role position adjusted via bot by {user}")
         else: 
             # Edit
@@ -138,12 +145,11 @@ async def remove_color(member: discord.Member, guild: discord.Guild):
     if existing_role:
         try:
             await existing_role.delete(reason=f"Auto-cleanup: {member.name} left the server.")
-            logger.info("Successfully deleted %s for %s.", role_name, member.name)
+            logger.info("Successfully deleted %s for %s.", role_name, member.id)
         except discord.Forbidden:
             logger.exception("Missing 'Manage Roles' permission to delete %s.", role_name)
         except discord.HTTPException:
             logger.exception("Failed to delete %s due to a Discord API error.", role_name)
-
 
 
 # Run the bot
