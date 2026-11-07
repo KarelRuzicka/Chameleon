@@ -135,11 +135,11 @@ async def parse_hex_color(hex: str) -> discord.Color:
 
 
 
-async def add_color(user: discord.Member, guild: discord.Guild, color: discord.Color):
+async def add_color(member: discord.Member, guild: discord.Guild, color: discord.Color):
         
     # Create/update the role
     try:
-        role_name = f"Color-{user.id}"
+        role_name = f"Color-{member.id}"
         
         existing_role = discord.utils.get(guild.roles, name=role_name) 
         # existing_role = next((role for role in interaction.guild.roles if role.name == role_name), None)
@@ -148,9 +148,9 @@ async def add_color(user: discord.Member, guild: discord.Guild, color: discord.C
             new_role = await guild.create_role(
                 name=role_name,
                 color=color,
-                reason=f"Role created via bot by {user}" 
+                reason=f"Role created via bot by {member}" 
             )
-            await user.add_roles(new_role, reason=f"Role assigned via bot by {user}")
+            await member.add_roles(new_role, reason=f"Role assigned via bot by {member}")
             
             await guild.fetch_roles() # Refresh the guild's role cache to remove a race condition where the role might not be immediately available after creation
             refreshed_role = guild.get_role(new_role.id)
@@ -161,12 +161,12 @@ async def add_color(user: discord.Member, guild: discord.Guild, color: discord.C
                     log_message = f"Failed to retrieve the newly created role."
                 )
             
-            await refreshed_role.edit(position=guild.me.top_role.position - 1, reason=f"Role position adjusted via bot by {user}")
+            await refreshed_role.edit(position=guild.me.top_role.position - 1, reason=f"Role position adjusted via bot by {member}")
         else: 
             # Update
             await existing_role.edit(
                 color=color, 
-                reason=f"Role color updated via bot by {user}")
+                reason=f"Role color updated via bot by {member}")
             
         
     except discord.Forbidden:
