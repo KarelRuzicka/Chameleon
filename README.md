@@ -10,5 +10,10 @@
 - `/namecolor <hex>` - Set your name color to the specified hex code (e.g., `/namecolor #FF0000`)
 - `/removenamecolor` - Reset your name color to default
 
-## Important Note
+## Important Notes
 - The added color roles will be added **below** the bot's highest role. Make sure the bot's role is high enough to manage color roles.
+- Each added color role is named `Color`. Make sure there are no other roles with the same name to avoid conflicts.
+
+## Permission Requirements
+- `Manage Roles` - Required to create and delete color roles for users.
+- `Send Messages` - Required to respond to user commands.

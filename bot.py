@@ -1,3 +1,5 @@
+import asyncio
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -12,6 +14,8 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+ROLE_NAME = "Color"
 
 
 class BotException(Exception):
@@ -45,6 +49,10 @@ async def on_ready():
         logger.info("Synced %d slash command(s).", len(synced))
     except Exception:
         logger.exception("Failed to sync slash commands.")
+        
+    # Cleanup any orphaned color roles in all guilds the bot is in
+    for guild in bot.guilds:
+        await cleanup_color_roles(guild)
 
 
 
@@ -99,11 +107,8 @@ async def removenamecolor(interaction: discord.Interaction):
     
 @bot.event
 async def on_member_remove(member: discord.Member):
-    try:
-        await remove_color(member, member.guild)
-    except BotException as e:
-        logger.warning(f"{e.log_message} | User: {member.id} | Guild: {member.guild.id}")
-    logger.info(f"Completed cleanup for departing member {member.id} in guild {member.guild.id}")
+    await asyncio.sleep(2)  # Wait a moment to ensure the member's roles are fully updated
+    await cleanup_color_roles(member.guild)
 
 
 
@@ -139,14 +144,12 @@ async def add_color(member: discord.Member, guild: discord.Guild, color: discord
         
     # Create/update the role
     try:
-        role_name = f"Color-{member.id}"
-        
-        existing_role = discord.utils.get(guild.roles, name=role_name) 
-        # existing_role = next((role for role in interaction.guild.roles if role.name == role_name), None)
+        existing_role = discord.utils.get(member.roles, name=ROLE_NAME) 
+        # existing_role = next((role for role in interaction.member.roles if role.name == ROLE_NAME), None)
         if existing_role is None: 
             # Create
             new_role = await guild.create_role(
-                name=role_name,
+                name=ROLE_NAME,
                 color=color,
                 reason=f"Role created via bot by {member}" 
             )
@@ -184,24 +187,43 @@ async def add_color(member: discord.Member, guild: discord.Guild, color: discord
 
 
 async def remove_color(member: discord.Member, guild: discord.Guild):
-    role_name = f"Color-{member.id}"
-    
-    existing_role = discord.utils.get(guild.roles, name=role_name)
     
     # If the role exists, delete it
-    if existing_role:
-        try:
+    try:
+        existing_role = discord.utils.get(member.roles, name=ROLE_NAME)
+    
+        if existing_role:
             await existing_role.delete(reason=f"Auto-cleanup: {member.name} left the server.")
-        except discord.Forbidden:
-            raise BotException(
-                user_message = "I don't have the 'Manage Roles' permission!",
-                log_message = f"Missing permissions while deleting name color role."
-            )
-        except discord.HTTPException:
-            raise BotException(
-                user_message = "Failed to remove your name color role.",
-                log_message = f"HTTP error while deleting name color role."
-            )
+            
+    except discord.Forbidden:
+        raise BotException(
+            user_message = "I don't have the 'Manage Roles' permission!",
+            log_message = f"Missing permissions while deleting name color role."
+        )
+    except discord.HTTPException:
+        raise BotException(
+            user_message = "Failed to remove your name color role.",
+            log_message = f"HTTP error while deleting name color role."
+        )
+        
+
+
+
+async def cleanup_color_roles(guild: discord.Guild):
+
+    try:
+        orphaned_roles = [role for role in guild.roles if role.name == ROLE_NAME and len(role.members) == 0]
+        
+        for role in orphaned_roles:
+            await role.delete(reason="Cleanup: Unused color role.")
+            logger.info(f"Deleted unused color role. | Guild: {guild.id}.")
+            
+    except discord.Forbidden:
+        logger.warning(f"Missing permissions while cleaning up color roles. | Guild: {guild.id}.")
+    except discord.HTTPException:
+        logger.warning(f"HTTP error while cleaning up color roles. | Guild: {guild.id}")
+
+
 
 
 # Run the bot
